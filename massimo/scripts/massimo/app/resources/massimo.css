@@ -1,0 +1,13 @@
+QGroupBox {
+    background-color: rgba(50, 50, 70, 100);
+}
+
+QPushButton {
+    min-height: 30px;
+    background-color: rgba(70, 70, 90, 255);
+}
+
+QScrollArea {
+    border: 6px solid black;
+    background-color: yellow;
+}

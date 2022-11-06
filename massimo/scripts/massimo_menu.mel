@@ -1,0 +1,60 @@
+global proc string AddMassimoMenuItems()
+{
+    // Global variable to hold the test to see if the menu is populated.
+    global int $gMassimoMenuItemsTest;
+
+    // Menu var needed in our case because we are inserting in the middle of the menu
+    global string $gMainVisualizeMenu;
+
+    if( $gMassimoMenuItemsTest == 0 )
+    {
+        // Actually build your menu.
+        // Note that if you don't need to insert it after a specific entry,
+        // You can just do `menuItem -label "blep"`. No need of -ia and -p
+        // Also, for inserting in the middle you have to put stuff in reverse order.
+        // If you are just appending, put it in the normal order.
+        menuItem -divider true -parent $gMainVisualizeMenu MassimoMenuDiv;
+        menuItem -label "Massimo" -parent $gMainVisualizeMenu -command "LaunchMassimo()" MassimoMenuItem;
+
+        $gMassimoMenuItemsTest = 1;
+    }
+    return "RemoveMyMenuItems()"; // Returns the callback
+}
+
+global proc RemoveMyMenuItems()
+{
+    global int $gMassimoMenuItemsTest;
+
+    if( $gMassimoMenuItemsTest == 1 )
+    {
+        // Delete your items if they exist (yes we are kind of
+        // doing the check twice, but I find it safe.
+        // The user could have deleted it from Maya in the command
+        // line for whatever reason, more robustness is always good.
+        if(`menu -ex MassimoMenuDiv`) deleteUI -mi MyMenuDiv;
+        if(`menu -ex MassimoMenuItem`) deleteUI -mi MassimoMenuItem;
+    }
+}
+
+global proc LaunchMassimo()
+{
+    print("Launching Massimo");
+
+    python("import massimo;massimo.launch()");
+}
+global proc RegisterMassimoMenu()
+{
+    // The menu we want to use ... here it is the File Menu.
+    global string $gMainVisualizeMenu;
+
+    // Our variables needed for the addSafe call
+    global int $gMassimoMenuItemsTest;
+    global string $gMassimoMenuVariable;
+    $gMassimoMenuItemsTest = 0;
+    $gMassimoMenuVariable = "";
+
+    // The menu creation
+    addMenuItemSafe($gMainVisualizeMenu, "AddMassimoMenuItems", "gMassimoMenuVariable");
+
+    print "done done done";
+}
