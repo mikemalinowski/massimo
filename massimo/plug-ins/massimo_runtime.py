@@ -675,12 +675,8 @@ class CenterOfMassDrawOverride(OpenMayaRender.MPxDrawOverride):
 
         if data.drawVerticalLine:
             drawManager.line(
-                OpenMaya.MPoint(
-                    *data.floor,
-                ),
-                OpenMaya.MPoint(
-                    *data.ceil,
-                )
+                OpenMaya.MPoint(*data.floor),
+                OpenMaya.MPoint(*data.ceil),
             )
 
         drawManager.endDrawable()
