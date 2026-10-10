@@ -25,7 +25,6 @@ import re
 import json
 
 from maya import cmds
-import pymel.core as pm
 
 # -- These regexes are constant, so rather than recompile them each time
 # -- we need them, we do it once at the module level
@@ -60,10 +59,10 @@ class MassimoCache(object):
         if MassimoCache.is_section_cache_dirty():
             return dict()
 
-        if not mass_node.name() in MassimoCache._SECTION_INDICES:
+        if mass_node not in MassimoCache._SECTION_INDICES:
             return dict()
 
-        return MassimoCache._SECTION_INDICES[mass_node.name()]
+        return MassimoCache._SECTION_INDICES[mass_node]
 
     # ------------------------------------------------------------------------------------------------------------------
     @classmethod
@@ -79,18 +78,17 @@ def _get_used_influence_indices(mass_node, section_idx):
     used as part of the calculation
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :param section_idx: The index of the section to inspect
     :type section_idx: int
 
     :return: List of integers
     """
-    mass_node = pm.PyNode(mass_node)
     indicies = dict()
 
-    for n in mass_node.listAttr(multi=True, inUse=True):
-        result = _REGEX_BOUNDS.search(str(n))
+    for n in cmds.listAttr(mass_node, multi=True, inUse=True) or []:
+        result = _REGEX_BOUNDS.search(n)
 
         if result:
             found_section = result.groups()[0]
@@ -109,7 +107,7 @@ def _get_used_section_indices(mass_node):
     sections we can interact wtih.
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :return: List of integers
     """
@@ -121,19 +119,17 @@ def _get_used_section_indices(mass_node):
     if cached_info:
         return cached_info
 
-    # -- Ensure we're working with a PyNode
-    mass_node = pm.PyNode(mass_node)
 
     # -- Declare a variable to scoop all the index information into
     indicies = dict()
 
     # -- Cycle all the multi attributes on the mass node which are
     # -- currently in use
-    for n in mass_node.listAttr(multi=True, inUse=True):
+    for n in cmds.listAttr(mass_node, multi=True, inUse=True) or []:
 
         # -- If we match this one as a section attribute we
         # -- can start to pull information from it
-        result = _REGEX_SECTIONS.search(n.name())
+        result = _REGEX_SECTIONS.search(n)
 
         # -- We only care about the index, and we want it to be
         # -- unique, so we use a dict here rather than doing
@@ -146,7 +142,7 @@ def _get_used_section_indices(mass_node):
 
     # -- Cache this information so that we do not have to generate
     # -- it again unless something changes
-    MassimoCache.cache_sections(mass_node.name(), result)
+    MassimoCache.cache_sections(mass_node, result)
 
     return result
 
@@ -157,20 +153,18 @@ def _get_section_idx_from_name(mass_node, name):
     This will determine the section id of the section with a given name.
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :param name: The name of the section we want to look up the id for
     :type name: str
 
     :return: integer
     """
-    # -- Ensure we're operating with a pynode
-    mass_node = pm.PyNode(mass_node)
 
     # -- Cycle all our section indices, and look at the sectionIdentifier attribute
     # -- so we can compare it to the name we're looking for
     for idx in _get_used_section_indices(mass_node):
-        if cmds.getAttr('{}.inputs[{}].sectionIdentifier'.format(mass_node.name(), idx)) == name:
+        if cmds.getAttr('{}.inputs[{}].sectionIdentifier'.format(mass_node, idx)) == name:
             return idx
 
     # -- If we could not find a section with the expected
@@ -184,15 +178,13 @@ def _get_name_from_section_idx(mass_node, section_idx):
     This will determine the name of a section using the section id as the look up
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :param section_idx: The section integer to inspect
     :type section_idx: int
 
     :return: str
     """
-    # -- Ensure we're operating with a pynode
-    mass_node = pm.PyNode(mass_node)
 
     # -- If the integer we have been given is not valid then we return None
     if section_idx not in _get_used_section_indices(mass_node):
@@ -200,7 +192,7 @@ def _get_name_from_section_idx(mass_node, section_idx):
 
     # -- Return the value of the sectionIdentifier which is within the
     # -- input plug with the given section id
-    return cmds.getAttr('{}.inputs[{}].sectionIdentifier'.format(mass_node.name(), section_idx))
+    return cmds.getAttr('{}.inputs[{}].sectionIdentifier'.format(mass_node, section_idx))
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -210,12 +202,10 @@ def get_normalised_weights(mass_node):
     and the values are normalised values based on the weights of each section.
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :return: dict(section_name: normalised weight value)
     """
-    # -- Ensure we're operating with a pynode
-    mass_node = pm.PyNode(mass_node)
 
     # -- Declare a variable to scoop all our weight information into
     weights = dict()
@@ -246,12 +236,10 @@ def get_section_names(mass_node):
     This returns a list of all the sections defined in the massimo node
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :return: list(str, str, str, ...)
     """
-    # -- Ensure we're operating with a pynode
-    mass_node = pm.PyNode(mass_node)
 
     # -- Get a list of the indices being used in the mass node
     section_indices = _get_used_section_indices(mass_node)
@@ -273,7 +261,7 @@ def set_section_name(mass_node, section_name, new_name):
     Switches the section with the given name to a new name
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :param section_name: Name of the section which is to be renamed
     :type section_name: str
@@ -284,8 +272,6 @@ def set_section_name(mass_node, section_name, new_name):
     :return: None
     """
 
-    # -- Ensure we're operating with a pynode
-    mass_node = pm.PyNode(mass_node)
 
     # -- If this name already exists then we should not reuse it
     if new_name in get_section_names(mass_node):
@@ -303,7 +289,11 @@ def set_section_name(mass_node, section_name, new_name):
         return
 
     # -- Perform the rename
-    mass_node.attr('inputs[{}].sectionIdentifier'.format(section_idx)).set(new_name)
+    cmds.setAttr(
+        '{}.inputs[{}].sectionIdentifier'.format(mass_node, section_idx),
+        new_name,
+        type='string',
+    )
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -312,7 +302,7 @@ def set_section_weight(mass_node, section_name, weight):
     Sets the weight/mass value of the given section
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :param section_name: The name of the section we need to change the weight value of
     :type section_name: str
@@ -322,8 +312,6 @@ def set_section_weight(mass_node, section_name, weight):
 
     :return: None
     """
-    # -- Ensure we're operating with a pynode
-    mass_node = pm.PyNode(mass_node)
 
     # -- Get the id of the section from the name, this is because
     # -- we need to edit the mass value directly
@@ -336,7 +324,7 @@ def set_section_weight(mass_node, section_name, weight):
         return
 
     # -- Perform the weight value change
-    mass_node.attr('inputs[{}].mass'.format(section_idx)).set(weight)
+    cmds.setAttr('{}.inputs[{}].mass'.format(mass_node, section_idx), weight)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -345,15 +333,13 @@ def get_section_weight(mass_node, section_name):
     Returns the weight/mass value assigned to the given section
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :param section_name: The name of the section we want to retrieve the weight value for
     :type section_name: str
 
     :return: float
     """
-    # -- Ensure we're operating with a pynode
-    mass_node = pm.PyNode(mass_node)
 
     # -- Get the id of the section from the name, this is because
     # -- we need to read the value directly from the plug
@@ -381,26 +367,24 @@ def add_section_influence(mass_node, section_name, influence):
     center, and thus affecting the final output position of the center of mass calculation
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :param section_name: The name of the section we want to add an influence to
     :type section_name: str
 
     :param influence: The influence object we want to include into the calculation
-    :type influence: pm.nt.Transform
+    :type influence: str
 
     :return: None
     """
-    # -- Ensure we're operating with a pynode
-    mass_node = pm.PyNode(mass_node)
 
     # -- Check the influence exists
-    if not pm.objExists(influence):
+    if not cmds.objExists(influence):
         print('no influence')
         return None
 
     # -- Ensure the node has a world matrix attr
-    if not pm.objExists('{}.worldMatrix[0]'.format(influence)):
+    if not cmds.objExists('{}.worldMatrix[0]'.format(influence)):
         print('no influence with a world matrix')
         print('{}.worldMatrix[0]]'.format(influence))
         return None
@@ -451,26 +435,19 @@ def remove_section_influence(mass_node, section_name, influence):
     Removes the given influence from the section with the given section name
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :param section_name: Name of the section we want to remove the influence from
     :type section_name: str
 
     :param influence: The influence we want to remove
-    :type influence: pm.nt.Transform
+    :type influence: str
 
     :return:
     """
-
-    # -- Ensure we're operating with a pynode
-    mass_node = pm.PyNode(mass_node)
-
     # -- If the influence does not exist, we cannot do anything
-    if not pm.objExists(influence):
+    if not cmds.objExists(influence):
         return
-
-    # -- Ensure we're working with a pymel object
-    influence = pm.PyNode(influence)
 
     # -- As we will need to interact with the mass node plugs directly we need
     # -- to know the id of the section to affect
@@ -483,13 +460,20 @@ def remove_section_influence(mass_node, section_name, influence):
         return
 
     # --Get a list of the outputs for the influences worldMatrix plug
-    for plug in pm.PyNode(influence).attr('worldMatrix[0]').outputs(plugs=True):
+    driven_plugs = cmds.listConnections(
+        '{}.worldMatrix[0]'.format(influence),
+        source=False,
+        destination=True,
+        plugs=True,
+    ) or []
+
+    for plug in driven_plugs:
 
         # -- Check if this is a plug we should keep looking at
-        if 'inputs[{}]'.format(section_idx) in plug.name():
+        if 'inputs[{}]'.format(section_idx) in plug:
 
             # -- Test the plug name more fully
-            plug_match = _REGEX_BOUNDS.search(plug.name())
+            plug_match = _REGEX_BOUNDS.search(plug)
 
             if plug_match:
 
@@ -514,15 +498,13 @@ def get_section_influences(mass_node, section_name):
     Returns a list of influences being used by the section with the given name
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :param section_name: Name of the section we want to retrieve a lost of influences for
     :type section_name: str
 
-    :return: list(pm.nt.Transform, ..)
+    :return: list(str, ..)
     """
-    # -- Ensure we're operating with a pynode
-    mass_node = pm.PyNode(mass_node)
 
     # -- Declare our output variable
     influences = list()
@@ -533,15 +515,20 @@ def get_section_influences(mass_node, section_name):
 
     # -- Cycle all the plug indices
     for influence_idx in _get_used_influence_indices(mass_node, section_idx):
-        bounds_attr = mass_node.attr(
-            'inputs[{section_idx}].pointsOfBounds[{influence_idx}]'.format(
-                section_idx=section_idx,
-                influence_idx=influence_idx,
-            )
+        bounds_attr = '{mass_node}.inputs[{section_idx}].pointsOfBounds[{influence_idx}]'.format(
+            mass_node=mass_node,
+            section_idx=section_idx,
+            influence_idx=influence_idx,
         )
 
         # -- Get the inputs (i.e, the nodes driving these plugs)
-        for driving_node in bounds_attr.inputs():
+        driving_nodes = cmds.listConnections(
+            bounds_attr,
+            source=True,
+            destination=False,
+        ) or []
+
+        for driving_node in driving_nodes:
             influences.append(driving_node)
 
     return influences
@@ -553,7 +540,7 @@ def add_mass_group(mass_node, name=''):
     Add a new mass group section to the mass node
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :param name: The name to assign to the section. This name must not be shared with any other section
         on the mass node.
@@ -565,8 +552,6 @@ def add_mass_group(mass_node, name=''):
     # -- is requested
     MassimoCache.invalidate_section_cache()
 
-    # -- Ensure we're operating with a pynode
-    mass_node = pm.PyNode(mass_node)
 
     # -- Initialise a new section with the given name
     section_idx = _initialise_mass_section(mass_node, name=name)
@@ -580,15 +565,13 @@ def remove_mass_group(mass_node, section_name):
     Removes a mass section with the given name from the mass node
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :param section_name: The name of the section you want to remove
     :type section_name: str
 
     :return: None
     """
-    # -- Ensure we're operating with a pynode
-    mass_node = pm.PyNode(mass_node)
 
     # -- We need to read from a section plug directly, so we need to request the given
     # -- plug index
@@ -621,26 +604,28 @@ def _initialise_mass_section(mass_node, name='new_section'):
     Initialises a pose section, and returns the index of the initialized section
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :param name: The name to assign to the section upon initialisation
     :type name: str
 
     :return: index of the pose (int)
     """
-    # -- Ensure we're operating with a pynode
-    mass_node = pm.PyNode(mass_node)
     counter = 0
 
     while True:
         # -- Getting the value of an attribute will initialise it - but will return None
         # -- if its the first time its initialised. Love Maya.
-        result = cmds.getAttr('{}.inputs[{}].sectionIdentifier'.format(mass_node.name(), counter))
+        result = cmds.getAttr('{}.inputs[{}].sectionIdentifier'.format(mass_node, counter))
 
         # -- If we get a None value then we have initialised a new section, so we can set the name and
         # -- be done!
         if not result:
-            mass_node.attr('inputs[{}].sectionIdentifier'.format(counter)).set(name)
+            cmds.setAttr(
+                '{}.inputs[{}].sectionIdentifier'.format(mass_node, counter),
+                name,
+                type='string',
+            )
             return counter
 
         counter += 1
@@ -652,7 +637,7 @@ def massimo_nodes():
     Returns a list of all the massimo nodes in the scene
     :return:
     """
-    return pm.ls(type='CenterOfMass')
+    return cmds.ls(type='CenterOfMass')
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -664,12 +649,10 @@ def new(name='massimo'):
         appended to the name of the actual shape node
     :type name: str
 
-    :return: pm.nt.CenterOfMass
+    :return: str
     """
-    node = pm.createNode('CenterOfMass')
-    node.getParent().rename(name)
-    node.rename(name + 'Settings')
-    return node
+    transform = cmds.createNode('transform', name=name)
+    return cmds.createNode('CenterOfMass', name=name + 'Settings', parent=transform)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -679,7 +662,7 @@ def serialise(mass_node, filepath=None):
     JSON format. If a filepath is given then it will also be saved to disk
 
     :param mass_node: The mass node to inspect
-    :type mass_node: pm.nt.CenterOfMass
+    :type mass_node: str
 
     :param filepath: Optional filepath (absolute) where this file should be saved
     :type filepath: str
@@ -689,14 +672,14 @@ def serialise(mass_node, filepath=None):
 
     # -- Declare our output dictionary
     data = dict(
-        name=mass_node.name(),
+        name=mass_node,
         sections=list(),
         settings=dict(
-            calculate=mass_node.calculate.get(),
-            drawDebuggingLines=mass_node.drawDebuggingLines.get(),
-            drawSphere=mass_node.drawSphere.get(),
-            drawVerticalLine=mass_node.drawVerticalLine.get(),
-            sphereSize=mass_node.sphereSize.get(),
+            calculate=cmds.getAttr('{}.calculate'.format(mass_node)),
+            drawDebuggingLines=cmds.getAttr('{}.drawDebuggingLines'.format(mass_node)),
+            drawSphere=cmds.getAttr('{}.drawSphere'.format(mass_node)),
+            drawVerticalLine=cmds.getAttr('{}.drawVerticalLine'.format(mass_node)),
+            sphereSize=cmds.getAttr('{}.sphereSize'.format(mass_node)),
         ),
     )
 
@@ -707,10 +690,7 @@ def serialise(mass_node, filepath=None):
         section_data = dict(
             name=section_name,
             weight=get_section_weight(mass_node, section_name),
-            influences=[
-                influence.name()
-                for influence in get_section_influences(mass_node, section_name)
-            ]
+            influences=get_section_influences(mass_node, section_name),
         )
 
         # -- Add the section data to the main data block
@@ -733,7 +713,7 @@ def deserialise(filepath):
     :param filepath: Absolute path to the .mass file
     :type filepath: str
 
-    :return: pm.nt.CenterOfMass
+    :return: str
     """
     # -- Read the filepath and load it as json
     with open(filepath, 'r') as f:
@@ -743,11 +723,11 @@ def deserialise(filepath):
     mass_node = new(data['name'])
 
     if 'settings' in data:
-        mass_node.calculate.set(data['settings']['calculate'])
-        mass_node.drawDebuggingLines.set(data['settings']['drawDebuggingLines'])
-        mass_node.drawSphere.set(data['settings']['drawSphere'])
-        mass_node.drawVerticalLine.set(data['settings']['drawVerticalLine'])
-        mass_node.sphereSize.set(data['settings']['sphereSize'])
+        cmds.setAttr('{}.calculate'.format(mass_node), data['settings']['calculate'])
+        cmds.setAttr('{}.drawDebuggingLines'.format(mass_node), data['settings']['drawDebuggingLines'])
+        cmds.setAttr('{}.drawSphere'.format(mass_node), data['settings']['drawSphere'])
+        cmds.setAttr('{}.drawVerticalLine'.format(mass_node), data['settings']['drawVerticalLine'])
+        cmds.setAttr('{}.sphereSize'.format(mass_node), data['settings']['sphereSize'])
 
     # -- Cycle all the stored sections
     for section in data['sections']:
@@ -769,11 +749,11 @@ def deserialise(filepath):
         for influence in section['influences']:
 
             # -- if the influence does not exist, check under namespaces
-            if not pm.objExists(influence):
+            if not cmds.objExists(influence):
                 influence = influence.split(':')[-1]
 
                 # -- Attempt to find the influence under namespaces
-                influences = pm.ls(influence, r=True)
+                influences = cmds.ls(influence, recursive=True)
 
                 if not influences:
                     continue
@@ -784,5 +764,5 @@ def deserialise(filepath):
             add_section_influence(
                 mass_node=mass_node,
                 section_name=section['name'],
-                influence=pm.PyNode(influence),
+                influence=influence,
             )

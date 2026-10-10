@@ -26,16 +26,17 @@ from ... import core
 
 from .settings import MassimoNodeSettings
 from ..widgets.mass_group import MassGroup
-from ...vendor import qute
+from ...vendor import qtility
+from Qt import QtGui, QtWidgets
 from ...defaults import Defaults
 
 import os
-import pymel.core as pm
+from maya import cmds
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 # noinspection PyUnresolvedReferences,PyPep8Naming
-class MassimoWidget(qute.QWidget):
+class MassimoWidget(QtWidgets.QWidget):
     """
     This represents the main functional widget of the tool
     """
@@ -53,13 +54,13 @@ class MassimoWidget(qute.QWidget):
         # -- This list is where we store a list of mass groups currently
         # -- assigned
         self.setLayout(
-            qute.utilities.layouts.slimify(
-                qute.QVBoxLayout(),
+            qtility.layouts.slimify(
+                QtWidgets.QVBoxLayout(),
             ),
         )
         
         # -- Load in our ui file
-        self.ui = qute.utilities.designer.load(
+        self.ui = qtility.designer.load(
             resources.get('massimo.ui'),
         )
         self.layout().addWidget(self.ui)
@@ -78,7 +79,7 @@ class MassimoWidget(qute.QWidget):
         # -- Set our button icons to be paths relative to the 
         # -- install location
         self.ui.settingsButton.setIcon(
-            qute.QIcon(
+            QtGui.QIcon(
                 resources.get('settings.png')
             )
         )
@@ -94,17 +95,17 @@ class MassimoWidget(qute.QWidget):
         This will attempt to get the mass node defined in the massimoNodes
         combo
         
-        :return: pm.nt.PyNode or None 
+        :return: str or None 
         """
         massNodeName = self.ui.massimoNodes.currentText()
         
         if not massNodeName:
             return None
         
-        if not pm.objExists(massNodeName):
+        if not cmds.objExists(massNodeName):
             return None
         
-        return pm.PyNode(self.ui.massimoNodes.currentText())
+        return massNodeName
     
     # ------------------------------------------------------------------------------------------------------------------
     def editSettings(self):
@@ -146,7 +147,7 @@ class MassimoWidget(qute.QWidget):
 
         for event in events:
             self.scriptJobIDs.append(
-                pm.scriptJob(
+                cmds.scriptJob(
                     event=[
                         event,
                         self.populateMassimoNodes,
@@ -164,7 +165,7 @@ class MassimoWidget(qute.QWidget):
         
         # -- Cycle all our registered script jobs and kill them
         for identifier in self.scriptJobIDs:
-            pm.scriptJob(
+            cmds.scriptJob(
                 kill=identifier,
                 force=True,
             )
@@ -187,7 +188,7 @@ class MassimoWidget(qute.QWidget):
             return
 
         # -- Ask for a save location
-        saveLocation = qute.utilities.request.filepath(
+        saveLocation = qtility.request.filepath(
             title='Save Massimo File',
             filter_='*.mass (*.mass)',
             parent=self,
@@ -211,7 +212,7 @@ class MassimoWidget(qute.QWidget):
         """
 
         # -- Open a file browser for the user
-        filepath = qute.utilities.request.filepath(
+        filepath = qtility.request.filepath(
             title='Open Massimo File',
             save=False,
             filter_='.mass (*.mass)',
@@ -251,12 +252,12 @@ class MassimoWidget(qute.QWidget):
 
         # -- Cycle all the massimo nodes in teh scene
         for node in core.massimo_nodes():
-            self.ui.massimoNodes.addItem(node.name())
+            self.ui.massimoNodes.addItem(node)
 
             # -- If the name of this node matches the item that was active
             # -- before we cleared the list, we store the index so we can set
             # -- it as the active index when we are done
-            if node.name() == _current:
+            if node == _current:
                 matchedIndex = currentIndex
 
             currentIndex += 1
@@ -274,7 +275,7 @@ class MassimoWidget(qute.QWidget):
         """
         # -- Start by clearing the list - this removes all the widgets
         # -- within it
-        qute.utilities.layouts.empty(self.ui.MassListLayout)
+        qtility.layouts.empty(self.ui.MassListLayout)
 
         # -- Get the mass node, if one could not be resolved we
         # -- do nothing
@@ -369,9 +370,9 @@ class MassimoWidget(qute.QWidget):
         :return:
         """
         # -- Ask the user for a mass group name
-        result = qute.utilities.request.text(
+        result = qtility.request.text(
             title='Add Mass Node',
-            label='Please give a name for this mass node',
+            message='Please give a name for this mass node',
             parent=self,
         )
 
@@ -399,9 +400,9 @@ class MassimoWidget(qute.QWidget):
             return
         
         # -- Ask the user for a mass group name
-        sectionName = qute.utilities.request.text(
+        sectionName = qtility.request.text(
             title='Add Mass Group',
-            label='Please give a name for this mass group',
+            message='Please give a name for this mass group',
             parent=self,
         )
 
@@ -426,8 +427,8 @@ class MassimoWidget(qute.QWidget):
         # -- If we have a selection at the time of adding a mass
         # -- group then we assume that the selected items want
         # -- to be added as influences
-        if pm.selected():
-            for node in pm.selected():
+        if cmds.ls(selection=True):
+            for node in cmds.ls(selection=True):
                 core.add_section_influence(
                     mass_node=massimoNode,
                     section_name=sectionName,
@@ -459,7 +460,7 @@ class MassimoWidget(qute.QWidget):
 
 # ----------------------------------------------------------------------------------------------------------------------
 # noinspection PyUnresolvedReferences
-class MassimoWindow(qute.QMainWindow):
+class MassimoWindow(QtWidgets.QMainWindow):
     """
     This is the window which hosts the mass widget. We place it in a window so we can
     make it dockable etc.
@@ -474,19 +475,10 @@ class MassimoWindow(qute.QMainWindow):
             MassimoWidget(),
         )
 
-        # -- Apply a consistent styling across the tool
-        qute.utilities.styling.apply(
-            [
-                'space',
-            ],
-            apply_to=self,
-            _FOREGROUND_='50, 50, 70'
-        )
-
         # -- Set the title and icon (branding) of the tool
         self.setWindowTitle('Massimo')
         self.setWindowIcon(
-            qute.QIcon(
+            QtGui.QIcon(
                 resources.get('massimo.png')
             )
         )
@@ -500,9 +492,9 @@ def launch():
     :return:
     """
     # -- Ensure the plugin is loaded
-    pm.loadPlugin(
+    cmds.loadPlugin(
         'massimo_runtime.py',
     )
 
-    w = MassimoWindow(parent=qute.utilities.windows.mainWindow())
+    w = MassimoWindow(parent=qtility.windows.application())
     w.show()

@@ -22,15 +22,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 from .. import resources
-from ...vendor import qute
+from ...vendor import qtility
+from Qt import QtCore, QtWidgets
 from ... import core
 
-import pymel.core as pm
+from maya import cmds
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 # noinspection PyPep8Naming,PyUnresolvedReferences
-class MassGroup(qute.QWidget):
+class MassGroup(QtWidgets.QWidget):
     """
     The mass group widget represents a single mass group and exposes
     all the settings for it
@@ -39,8 +40,8 @@ class MassGroup(qute.QWidget):
     # -- We know that the main tool will want to respond to 
     # -- some of the actions the user does to this widget, so 
     # -- we expose signals to inform that things are chaning 
-    IsDeleted = qute.Signal()
-    WeightChanged = qute.Signal()
+    IsDeleted = QtCore.Signal()
+    WeightChanged = QtCore.Signal()
 
     # ------------------------------------------------------------------------------------------------------------------
     def __init__(self, massNode, name, parent=None):
@@ -53,24 +54,16 @@ class MassGroup(qute.QWidget):
 
         # -- Define the base layout
         self.setLayout(
-            qute.utilities.layouts.slimify(
-                qute.QVBoxLayout(),
+            qtility.layouts.slimify(
+                QtWidgets.QVBoxLayout(),
             ),
         )
 
         # -- Add in a designer file widget
-        self.ui = qute.utilities.designer.load(
+        self.ui = qtility.designer.load(
             resources.get('mass_group.ui'),
         )
         self.layout().addWidget(self.ui)
-
-        # -- Apply the massimo style to this widget
-        qute.utilities.styling.apply(
-            [
-                resources.get('massimo.css'),
-            ],
-            apply_to=self,
-        )
 
         # -- Set the name of the group box to be that of the section
         # -- name, so the user knows what section they are interacting
@@ -140,10 +133,10 @@ class MassGroup(qute.QWidget):
         # -- Clear the current list
         self.ui.influenceList.clear()
 
-        # -- Get the list of influences, which returns PyNode's and
+        # -- Get the list of influences, which returns node names, and
         # -- add each one to the list
         for influence in core.get_section_influences(self._massNode, self.name):
-            self.ui.influenceList.addItem(influence.name())
+            self.ui.influenceList.addItem(influence)
 
     # ------------------------------------------------------------------------------------------------------------------
     def addInfluence(self):
@@ -153,11 +146,11 @@ class MassGroup(qute.QWidget):
         :return:
         """
         # -- If nothing is selected we cannot do anything
-        if not pm.selected():
+        if not cmds.ls(selection=True):
             return
 
         # -- For each selected item we add the influence
-        for item in pm.selected():
+        for item in cmds.ls(selection=True):
             core.add_section_influence(
                 mass_node=self._massNode,
                 section_name=self.name,
@@ -197,18 +190,18 @@ class MassGroup(qute.QWidget):
         :return:
         """
         # -- Request a new name for the section
-        newName = qute.utilities.request.text(
+        newName = qtility.request.text(
             title='Section Rename',
-            label='New name to assign to this section. The name must not already be used by another mass group',
+            message='New name to assign to this section. The name must not already be used by another mass group',
             parent=self,
             text=self.name,
         )
 
         # -- If the new name already exists, then we cannot assign it
         if newName in core.get_section_names(self._massNode):
-            qute.utilities.request.message(
+            qtility.request.message(
                 title='Section Name is not unique',
-                label='You must specify a unique section name. This name is already in use',
+                message='You must specify a unique section name. This name is already in use',
                 parent=self,
             )
             return
@@ -235,9 +228,9 @@ class MassGroup(qute.QWidget):
 
         # -- This is a big operation, so we must absolutely check that the user
         # -- really wants to remove the section
-        confirmation = qute.utilities.request.confirmation(
+        confirmation = qtility.request.confirmation(
             title='Delete Section',
-            label='Are you sure you want to delete {section_name}'.format(section_name=self.name),
+            message='Are you sure you want to delete {section_name}'.format(section_name=self.name),
             parent=self,
         )
 

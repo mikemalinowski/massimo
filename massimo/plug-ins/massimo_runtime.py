@@ -4,7 +4,7 @@ import maya.api.OpenMaya as OpenMaya
 import maya.api.OpenMayaUI as OpenMayaUI
 import maya.api.OpenMayaRender as OpenMayaRender
 
-import pymel.core as pm
+from maya import cmds
 
 # -- We're using Maya Python API 2.0, so we have to flag this plugin
 maya_useNewAPI = True
@@ -621,7 +621,7 @@ class CenterOfMassDrawOverride(OpenMayaRender.MPxDrawOverride):
         ]
 
         # -- Build the information for the top and bottom of the line to be drawn
-        if pm.upAxis(q=True, axis=True) == 'z':
+        if cmds.upAxis(q=True, axis=True) == 'z':
             data.floor = [
                 comVector[0],
                 comVector[1],
@@ -675,12 +675,8 @@ class CenterOfMassDrawOverride(OpenMayaRender.MPxDrawOverride):
 
         if data.drawVerticalLine:
             drawManager.line(
-                OpenMaya.MPoint(
-                    *data.floor,
-                ),
-                OpenMaya.MPoint(
-                    *data.ceil,
-                )
+                OpenMaya.MPoint(*data.floor),
+                OpenMaya.MPoint(*data.ceil),
             )
 
         drawManager.endDrawable()

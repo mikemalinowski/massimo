@@ -21,13 +21,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-from ...vendor import qute
+from maya import cmds
+
+from ...vendor import qtility
+from Qt import QtGui, QtWidgets
 from .. import resources
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 # noinspection PyUnresolvedReferences,PyPep8Naming
-class MassimoNodeSettings(qute.QDialog):
+class MassimoNodeSettings(QtWidgets.QDialog):
     """
     The settings dialog allows the user to interact and alter the state of the
     massimo node
@@ -44,20 +47,20 @@ class MassimoNodeSettings(qute.QDialog):
         self.setWindowTitle('Massimo Node Settings')
 
         self.setWindowIcon(
-            qute.QIcon(
+            QtGui.QIcon(
                 resources.get('massimo.png')
             )
         )
 
         # -- Generate the default layout
         self.setLayout(
-            qute.utilities.layouts.slimify(
-                qute.QVBoxLayout(),
+            qtility.layouts.slimify(
+                QtWidgets.QVBoxLayout(),
             ),
         )
 
         # -- Load in the ui file
-        self.ui = qute.utilities.designer.load(
+        self.ui = qtility.designer.load(
             resources.get('settings.ui'),
         )
         self.layout().addWidget(self.ui)
@@ -79,11 +82,11 @@ class MassimoNodeSettings(qute.QDialog):
 
         :return:
         """
-        self._massNode.attr('drawSphere').set(self.ui.drawSphereCheckBox.isChecked())
-        self._massNode.attr('drawVerticalLine').set(self.ui.drawVerticalLineCheckBox.isChecked())
-        self._massNode.attr('drawDebuggingLines').set(self.ui.drawDebugLinesCheckBox.isChecked())
-        self._massNode.attr('calculate').set(self.ui.calculateCheckBox.isChecked())
-        self._massNode.attr('sphereSize').set(self.ui.sphereSizeSpinBox.value())
+        cmds.setAttr('{}.drawSphere'.format(self._massNode), self.ui.drawSphereCheckBox.isChecked())
+        cmds.setAttr('{}.drawVerticalLine'.format(self._massNode), self.ui.drawVerticalLineCheckBox.isChecked())
+        cmds.setAttr('{}.drawDebuggingLines'.format(self._massNode), self.ui.drawDebugLinesCheckBox.isChecked())
+        cmds.setAttr('{}.calculate'.format(self._massNode), self.ui.calculateCheckBox.isChecked())
+        cmds.setAttr('{}.sphereSize'.format(self._massNode), self.ui.sphereSizeSpinBox.value())
 
     # ------------------------------------------------------------------------------------------------------------------
     def readSettings(self):
@@ -91,8 +94,8 @@ class MassimoNodeSettings(qute.QDialog):
         In this function we read the node within the scene and update all the values in the ui
         :return:
         """
-        self.ui.drawSphereCheckBox.setChecked(self._massNode.attr('drawSphere').get())
-        self.ui.drawVerticalLineCheckBox.setChecked(self._massNode.attr('drawVerticalLine').get())
-        self.ui.drawDebugLinesCheckBox.setChecked(self._massNode.attr('drawDebuggingLines').get())
-        self.ui.calculateCheckBox.setChecked(self._massNode.attr('calculate').get())
-        self.ui.sphereSizeSpinBox.setValue(self._massNode.attr('sphereSize').get())
+        self.ui.drawSphereCheckBox.setChecked(cmds.getAttr('{}.drawSphere'.format(self._massNode)))
+        self.ui.drawVerticalLineCheckBox.setChecked(cmds.getAttr('{}.drawVerticalLine'.format(self._massNode)))
+        self.ui.drawDebugLinesCheckBox.setChecked(cmds.getAttr('{}.drawDebuggingLines'.format(self._massNode)))
+        self.ui.calculateCheckBox.setChecked(cmds.getAttr('{}.calculate'.format(self._massNode)))
+        self.ui.sphereSizeSpinBox.setValue(cmds.getAttr('{}.sphereSize'.format(self._massNode)))
